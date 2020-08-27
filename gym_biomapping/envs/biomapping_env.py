@@ -1,22 +1,18 @@
-import gym
-from gym import error, spaces, utils
-from gym.utils import seeding
+#import gym
+#from gym import error, spaces, utils
+#from gym.utils import seeding
 
-import ipywidgets as widgets
+
 import matplotlib.pyplot as plt
 import cmocean
 
 import datetime
 import numpy as np
-import pandas as pd
-import xarray as xr
-import sys
 
-sys.path.append('/home/andreas/ailaron/SimplePlanner')
-from silcamsim import SilcamSim
+from silcam_sim import SilcamSim
 from auv_sim import AUVsim
 
-class BioMapping(gym.Env):  
+class BioMapping:  #(gym.Env):
     metadata = {'render.modes': ['human']}
     
     def __init__(self, dt = 60, lon0=10.4, lat0=63.44, every_n = 10):
