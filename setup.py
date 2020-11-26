@@ -1,6 +1,12 @@
-from setuptools import setup
+import setuptools
 
-setup(name='gym_biomapping',
+setuptools.setup(name='gym-biomapping',
       version='0.0.1',
-      install_requires=['gym']#And any other dependencies required
+      author="AndreasVaage",
+      author_email="andreas.vage@ntnu.no",
+      description="Simulator for adaptive sampling of biomass in the ocean",
+      packages=setuptools.find_packages(),
+      include_package_data=True,
+      package_data={'':['*.nc'],},
+      install_requires=['gym', 'numpy', 'pyproj', 'xarray', 'netcdf4', 'matplotlib', 'cmocean', 'datetime']
 )
