@@ -13,11 +13,14 @@ import pyproj
 from gym_biomapping.envs.silcam_sim import SilcamSim
 from gym_biomapping.envs.auv_sim import AUVsim
 
+from pathlib import Path
+
+DATA_DIR = Path(__file__).parent.joinpath('data')
 
 class BioMapping(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, dt=60, lon0=10.4, lat0=63.44, data_src='data/bio2d_v2_samples_TrF_2018.04.27.nc'):
+    def __init__(self, dt=60, lon0=10.4, lat0=63.44, data_file='bio2d_v2_samples_TrF_2018.04.27.nc'):
         super(BioMapping, self).__init__()
         assert (np.shape(lon0) == np.shape(lat0))
         assert (dt > 0)
@@ -25,7 +28,10 @@ class BioMapping(gym.Env):
         # self.times = pd.date_range('2018-04-27 10:00:00', freq=dt, periods=N, tz='UTC')
         # self.data = np.zeros((N,n_auvs,4))
         self.dt = dt
-        self.ds = xr.open_dataset(data_src)
+        data_path = DATA_DIR.joinpath(data_file)
+        if not data_path.is_file():
+            data_path = data_file
+        self.ds = xr.open_dataset(data_path)
         self.xy = pyproj.Proj(proj=self.ds.proj_xy)
         self.lonlat = pyproj.Proj(proj=self.ds.proj_lonlat)
         self.t0 = self.ds.time.values[0]
