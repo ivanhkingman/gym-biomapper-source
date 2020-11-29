@@ -69,6 +69,7 @@ class BioMapping(gym.Env):
 
     def step(self, action):
         self.t += self.dt
+        #self.action = action # Store as member for plotting in render function
         pos = self.auv_sim.step(action)
         obs = self.silcam_sim.measure(self.ds, self.t, pos)
         env_state = self.ds.isel(zc=0).biomass.interp(time=self.t).T.values
@@ -86,20 +87,38 @@ class BioMapping(gym.Env):
         self.t = self.t0
         pos = self.auv_sim.reset()
         obs = self.silcam_sim.measure(self.ds, self.t, pos)
-        return np.array([pos[0], pos[1], pos[2], obs, np.ones(obs.shape) * self.t]).T
+        env_state = self.ds.isel(zc=0).biomass.interp(time=self.t).T.values
+        #self.action = pos # Store as member for plotting in render function
+        state = {
+            "pos": pos,
+            "time": np.ones(obs.shape) * self.t,
+            "env": env_state
+        } 
+        return state
 
     def render(self, mode='human'):
         if not self.figure_initialised:
-            self.fig, self.ax = plt.subplots()
+            #self.fig, (self.ax1, self.ax2) = plt.subplots(1, 2)
+            self.fig, self.ax1 = plt.subplots()
             self.figure_initialised = True
 
-        self.ax.clear()
-        self.ax.pcolormesh(self.ds.xc, self.ds.yc,
+        self.ax1.clear()
+        self.ax1.set_title('Environment')
+        self.ax1.pcolormesh(self.ds.xc, self.ds.yc,
                            self.ds.isel(zc=0).biomass.interp(time=self.t).T,
                            cmap=cmocean.cm.deep,
                            shading='auto')
-        self.ax.plot(self.auv_sim.pos[0], self.auv_sim.pos[1], 'ro')
-        self.ax.set_title("Simulation duration: " + str(self.t - self.t0) + "s")
+        self.ax1.plot(self.auv_sim.pos[0], self.auv_sim.pos[1], 'ro')
+        
+        #self.ax2.clear()
+        #self.ax2.set_title('Observation')
+        #self.ax2.pcolormesh(self.ds.xc, self.ds.yc, self.state["env"],
+        #           cmap=cmocean.cm.deep,
+        #           shading='auto')
+        #self.ax2.plot(self.action[0], self.action[1], 'go')
+        
+        
+        self.fig.suptitle("Simulation duration: " + str(self.t - self.t0) + "s")
         self.fig.canvas.draw()
 
     def close(self):
