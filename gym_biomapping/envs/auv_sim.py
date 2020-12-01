@@ -2,7 +2,7 @@ import pyproj
 import numpy as np
 
 
-class AUVsim():
+class AUVsim:
 
     # metadata = {
     #    'render.modes': ['human', 'rgb_array'],
@@ -57,8 +57,8 @@ class AUVsim():
         self.pos = self.pos0
         return self.pos
 
-    def render(self, mode='human', close=False):
-        pass
+    def render(self, ax):
+        ax.plot(self.pos[0], self.pos[1], 'ro')
 
     def xy2lonlat(self, x, y):
         # Convert from x-y coordinates to lon-lat

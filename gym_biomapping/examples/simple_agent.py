@@ -7,8 +7,8 @@ class SimpleAgent:
 
     def __init__(self, xc, yc, render=True):
         self.totalscore = 0
-        self.xc = xc # Mapping from index to x coordinate
-        self.yc = yc # Mapping from index to y coordinate
+        self.xc = xc  # Mapping from index to x coordinate
+        self.yc = yc  # Mapping from index to y coordinate
         if render:
             self.fig, self.ax = plt.subplots()
 

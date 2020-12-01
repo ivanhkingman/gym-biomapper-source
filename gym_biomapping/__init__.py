@@ -6,5 +6,6 @@ register(
     kwargs={'dt': 60,
             'pos0': None,
             'data_file': 'bio2d_v2_samples_TrF_2018.04.27.nc',
-            'static': False}
+            'static': False,
+            'n_auvs': 1}
 )

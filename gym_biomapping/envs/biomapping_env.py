@@ -3,13 +3,9 @@ from gym import error, spaces, utils
 from gym.utils import seeding
 
 import matplotlib.pyplot as plt
-import cmocean
-
 import numpy as np
-import xarray as xr
-import pyproj
 
-from gym_biomapping.envs.silcam_sim import SilcamSim
+from gym_biomapping.envs.env_sim import EnvSim
 from gym_biomapping.envs.auv_sim import AUVsim
 
 from pathlib import Path
@@ -20,116 +16,36 @@ DATA_DIR = Path(__file__).parent.joinpath('data')
 class BioMapping(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, dt=60, pos0=None, data_file='bio2d_v2_samples_TrF_2018.04.27.nc', static=False):
+    def __init__(self, dt=60, pos0=None, data_file='bio2d_v2_samples_TrF_2018.04.27.nc', static=False, n_auvs=1):
         super(BioMapping, self).__init__()
         assert (dt > 0)
-        self.static = static
-        self.dt = dt
-        data_path = DATA_DIR.joinpath(data_file)
-        if not data_path.is_file():
-            data_path = data_file
-        self.ds = xr.open_dataset(data_path)
-        self.xy = pyproj.Proj(proj=self.ds.proj_xy)
-        self.lonlat = pyproj.Proj(proj=self.ds.proj_lonlat)
-        self.t0 = self.ds.time.values[0]
+
+        self.env_sim = EnvSim(dt=dt, data_file=data_file, static=static, n_auvs=n_auvs)
         if pos0 is None:
-            pos0 = [[self.ds.xc.values[0]], [self.ds.yc.values[0]], [0]]
-        if not isinstance(pos0, np.ndarray):
-            pos0 = np.array(pos0, dtype=float)
-
-        n_auvs = pos0.shape[1]
-
-        self.silcam_sim = SilcamSim()
+            pos0 = self.env_sim.pos_space.low  # could also use .sample()
         self.auv_sim = AUVsim(pos0, speed=1.0, dt=dt)
         # Lats = np.linspace(63.4294, 63.4800, 50)
         # Lons = np.linspace(10.3329, 10.4461, 50)
-        # TODO: Determine appropriate action space.
-        # Action space is just a waypoint anywhere in the world
-        low = np.array([np.min(self.ds.xc), np.min(self.ds.yc), np.min(self.ds.zc)], dtype=np.float32)
-        high = np.array([np.max(self.ds.xc), np.max(self.ds.yc), np.max(self.ds.zc)], dtype=np.float32)
-        np.repeat(np.array([2, 3, 4])[:, np.newaxis], n_auvs, axis=1)
-        pos_space = spaces.Box(low=np.repeat(low[:, np.newaxis], n_auvs, axis=1),
-                               high=np.repeat(high[:, np.newaxis], n_auvs, axis=1),
-                               shape=(3, n_auvs),
-                               dtype=np.float32)
-        time_space = spaces.Box(low=self.ds.time.values.min(),
-                                high=self.ds.time.values.max(),
-                                shape=(1, n_auvs))
-        # TODO: Determine if observations should be normalised
-        env_space = spaces.Box(low=self.ds.biomass.values.min(), high=self.ds.biomass.values.max(),
-                               shape=(self.ds.biomass.xc.size, self.ds.biomass.yc.size), dtype=np.float32)
 
-        self.action_space = pos_space
-        self.observation_space = spaces.Dict({"pos": pos_space, "time": time_space, "env": env_space})
-        self.figure_initialised = False
+        self.action_space = self.env_sim.pos_space
+        self.observation_space = spaces.Dict({"pos": self.env_sim.pos_space, "env": self.env_sim.env_space})
+        self.fig, self.ax1 = plt.subplots()
         self.reset()
 
     def step(self, action):
-        self.t += self.dt
-        # self.action = action # Store as member for plotting in render function
         pos = self.auv_sim.step(action)
-        if self.static:
-            obs = self.silcam_sim.measure(self.ds, self.t0, pos)
-            env_state = self.ds.isel(zc=0).biomass.interp(time=self.t0).values
-        else:
-            obs = self.silcam_sim.measure(self.ds, self.t, pos)
-            env_state = self.ds.isel(zc=0).biomass.interp(time=self.t).values
-        self.state = {
-            "pos": pos,
-            "time": np.ones(obs.shape) * self.t,
-            "env": env_state
-        }
-        reward = np.linalg.norm(obs, axis=0)
-        done = False
-        info = {'sim_time': self.t - self.t0}
-        return self.state, reward, done, info
+        env_state, reward, done, info = self.env_sim.step(pos)
+        state = {"pos": pos, "env": env_state}
+        return state, reward, done, info
 
     def reset(self):
-        self.t = self.t0
-        pos = self.auv_sim.reset()
-        obs = self.silcam_sim.measure(self.ds, self.t0, pos)
-        env_state = self.ds.isel(zc=0).biomass.interp(time=self.t0).values
-        # self.action = pos # Store as member for plotting in render function
-        self.state = {
-            "pos": pos,
-            "time": np.ones(obs.shape) * self.t,
-            "env": env_state
-        }
-        return self.state
+        return {"pos": self.auv_sim.reset(), "env": self.env_sim.reset()}
 
     def render(self, mode='human'):
-        if not self.figure_initialised:
-            # self.fig, (self.ax1, self.ax2) = plt.subplots(1, 2)
-            self.fig, self.ax1 = plt.subplots()
-            self.figure_initialised = True
-
         self.ax1.clear()
-        self.ax1.set_title('Environment')
-        self.ax1.pcolormesh(self.ds.xc, self.ds.yc,
-                            self.state['env'].T,
-                            cmap=cmocean.cm.deep,
-                            shading='auto')
-        self.ax1.plot(self.state['pos'][0], self.state['pos'][1], 'ro')
-
-        # self.ax2.clear()
-        # self.ax2.set_title('Observation')
-        # self.ax2.pcolormesh(self.ds.xc, self.ds.yc, self.state["env"],
-        #           cmap=cmocean.cm.deep,
-        #           shading='auto')
-        # self.ax2.plot(self.action[0], self.action[1], 'go')
-
-        self.fig.suptitle("Simulation duration: " + str(self.t - self.t0) + "s")
+        self.env_sim.render(self.ax1)
+        self.auv_sim.render(self.ax1)
         self.fig.canvas.draw()
 
     def close(self):
         return
-
-    def xy2lonlat(self, x, y):
-        # Convert from x-y coordinates to lon-lat
-        # (this function works on both scalars and arrays)
-        return pyproj.transform(self.xy, self.lonlat, x, y)
-
-    def lonlat2xy(self, lon, lat):
-        # Convert from lon-lat to x-y coordinates
-        # (this function works on both scalars and arrays)
-        return pyproj.transform(self.lonlat, self.xy, lon, lat)
