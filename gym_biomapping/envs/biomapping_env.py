@@ -20,9 +20,10 @@ DATA_DIR = Path(__file__).parent.joinpath('data')
 class BioMapping(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, dt=60, pos0=None, data_file='bio2d_v2_samples_TrF_2018.04.27.nc'):
+    def __init__(self, dt=60, pos0=None, data_file='bio2d_v2_samples_TrF_2018.04.27.nc', static=False):
         super(BioMapping, self).__init__()
         assert (dt > 0)
+        self.static = static
         self.dt = dt
         data_path = DATA_DIR.joinpath(data_file)
         if not data_path.is_file():
@@ -35,8 +36,6 @@ class BioMapping(gym.Env):
             pos0 = [[self.ds.xc.values[0]], [self.ds.yc.values[0]], [0]]
         if not isinstance(pos0, np.ndarray):
             pos0 = np.array(pos0, dtype=float)
-
-        self.t = self.t0
 
         n_auvs = pos0.shape[1]
 
@@ -62,16 +61,20 @@ class BioMapping(gym.Env):
 
         self.action_space = pos_space
         self.observation_space = spaces.Dict({"pos": pos_space, "time": time_space, "env": env_space})
-
         self.figure_initialised = False
+        self.reset()
 
     def step(self, action):
         self.t += self.dt
         # self.action = action # Store as member for plotting in render function
         pos = self.auv_sim.step(action)
-        obs = self.silcam_sim.measure(self.ds, self.t, pos)
-        env_state = self.ds.isel(zc=0).biomass.interp(time=self.t).values
-        state = {
+        if self.static:
+            obs = self.silcam_sim.measure(self.ds, self.t0, pos)
+            env_state = self.ds.isel(zc=0).biomass.interp(time=self.t0).values
+        else:
+            obs = self.silcam_sim.measure(self.ds, self.t, pos)
+            env_state = self.ds.isel(zc=0).biomass.interp(time=self.t).values
+        self.state = {
             "pos": pos,
             "time": np.ones(obs.shape) * self.t,
             "env": env_state
@@ -79,20 +82,20 @@ class BioMapping(gym.Env):
         reward = np.linalg.norm(obs, axis=0)
         done = False
         info = {'sim_time': self.t - self.t0}
-        return state, reward, done, info
+        return self.state, reward, done, info
 
     def reset(self):
         self.t = self.t0
         pos = self.auv_sim.reset()
-        obs = self.silcam_sim.measure(self.ds, self.t, pos)
-        env_state = self.ds.isel(zc=0).biomass.interp(time=self.t).T.values
+        obs = self.silcam_sim.measure(self.ds, self.t0, pos)
+        env_state = self.ds.isel(zc=0).biomass.interp(time=self.t0).values
         # self.action = pos # Store as member for plotting in render function
-        state = {
+        self.state = {
             "pos": pos,
             "time": np.ones(obs.shape) * self.t,
             "env": env_state
         }
-        return state
+        return self.state
 
     def render(self, mode='human'):
         if not self.figure_initialised:
@@ -103,10 +106,10 @@ class BioMapping(gym.Env):
         self.ax1.clear()
         self.ax1.set_title('Environment')
         self.ax1.pcolormesh(self.ds.xc, self.ds.yc,
-                            self.ds.isel(zc=0).biomass.interp(time=self.t).T,
+                            self.state['env'].T,
                             cmap=cmocean.cm.deep,
                             shading='auto')
-        self.ax1.plot(self.auv_sim.pos[0], self.auv_sim.pos[1], 'ro')
+        self.ax1.plot(self.state['pos'][0], self.state['pos'][1], 'ro')
 
         # self.ax2.clear()
         # self.ax2.set_title('Observation')
