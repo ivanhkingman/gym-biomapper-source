@@ -1,11 +1,13 @@
 import xarray as xr
 
+
 class SilcamSim:
     def __init__(self):
         """
         Init the silcam simulator.
         # Todo: add sensor charateristics (noise model)
         """
+
     def measure(self, ds, timestamp, pos):
         # x, y = self.lonlat2xy(lon=pos[0], lat=pos[1])
         x = pos[0]

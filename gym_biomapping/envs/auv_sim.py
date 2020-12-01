@@ -1,30 +1,32 @@
 import pyproj
 import numpy as np
 
+
 class AUVsim():
-    
-    #metadata = {
+
+    # metadata = {
     #    'render.modes': ['human', 'rgb_array'],
     #    'plot.frames_per_second': 50
-    #}
-    
-    def __init__(self, lon0 = 0.0, lat0 = 0.0, speed=1.0, dt = 1.0, xy=None, lonlat=None):
-        assert np.size(lon0) == np.size(lat0), "lat0 and lon0 must be same size"
-        self.nauvs = np.size(lon0)
+    # }
+
+    def __init__(self, pos0=np.zeros((3, 1)), speed=1.0, dt=1.0, xy=None, lonlat=None):
+        if not isinstance(pos0, np.ndarray):
+            pos0 = np.array(pos0)
+        assert pos0.shape[0] == 3, "Position must have 3xn_auvs shape"
+        n_auvs = pos0.shape[1]
         if np.size(speed) != 1:
-            assert np.size(speed) == self.nauvs, "Speed must be the same size at lon0"
+            assert np.size(speed) == n_auvs, "The AUVs must have the same speed or one each"
             assert all(speed > 0), "All auv speeds must be positive"
         else:
             assert speed > 0, "Speed must be positive"
-        assert(dt > 0), "Timestep must be positive scalar"
-        self.lon0 = lon0
-        self.lat0 = lat0
-        self.speed = speed                    # m/s
-        self.dt = dt                          # s
+        assert (dt > 0), "Timestep must be positive scalar"
+        self.pos0 = pos0
+        self.pos = pos0
+        self.speed = speed  # m/s
+        self.dt = dt  # s
         self.xy = xy
         self.lonlat = lonlat
-        self.reset()
-        
+
     def step(self, action):
         """
         Do one simulation step
@@ -32,34 +34,32 @@ class AUVsim():
         action[0][5] returns x value of the goal position for auv number 6.
         :return state, current position of the AUVs, same structure as action.
         """
-    
-        #goal = np.zeros((3, self.nauvs))
-        #goal[0], goal[1] = self.lonlat2xy(action[0], action[1])
+        if not isinstance(action, np.ndarray):
+            action = np.array(action)
+        assert action.shape == self.pos.shape
+        # goal = np.zeros((3, self.nauvs))
+        # goal[0], goal[1] = self.lonlat2xy(action[0], action[1])
 
         dv = action - self.pos
         dist = np.linalg.norm(dv, axis=0)
-        
-        at_goal = dist < self.speed*self.dt
-        self.pos[:, at_goal] = action[:, at_goal]
-        self.pos[:, ~at_goal] += (dv[:, ~at_goal]/dist[~at_goal])*self.speed*self.dt
-        
-        #self.heading = np.arctan2(dv[1], dv[0])
 
-        #lon, lat = self.xy2lonlat(self.pos[0], self.pos[1])
-        #return np.array([lon, lat, self.pos[2]])
+        at_goal = dist < self.speed * self.dt
+        self.pos[:, at_goal] = action[:, at_goal]
+        self.pos[:, ~at_goal] += (dv[:, ~at_goal] / dist[~at_goal]) * self.speed * self.dt
+
+        # self.heading = np.arctan2(dv[1], dv[0])
+
+        # lon, lat = self.xy2lonlat(self.pos[0], self.pos[1])
+        # return np.array([lon, lat, self.pos[2]])
         return self.pos
-        
+
     def reset(self):
-        self.pos = np.zeros((3, self.nauvs))
-        self.pos[0] = self.lon0
-        self.pos[1] = self.lat0
-        #self.pos[0], self.pos[1] = self.lonlat2xy(self.lon0, self.lat0)
-        #return np.array([self.lon0, self.lat0, self.pos[2]])
+        self.pos = self.pos0
         return self.pos
- 
+
     def render(self, mode='human', close=False):
         pass
-    
+
     def xy2lonlat(self, x, y):
         # Convert from x-y coordinates to lon-lat
         # (this function works on both scalars and arrays)
