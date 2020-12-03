@@ -28,10 +28,9 @@ class EnvSim:
         # Action space is a set of points anywhere in the env, one point for each AUV
         low = np.array([np.min(self.ds.xc), np.min(self.ds.yc), np.min(self.ds.zc)], dtype=np.float32)
         high = np.array([np.max(self.ds.xc), np.max(self.ds.yc), np.max(self.ds.zc)], dtype=np.float32)
-        np.repeat(np.array([2, 3, 4])[:, np.newaxis], n_auvs, axis=1)
-        self.pos_space = spaces.Box(low=np.repeat(low[:, np.newaxis], n_auvs, axis=1),
-                                    high=np.repeat(high[:, np.newaxis], n_auvs, axis=1),
-                                    shape=(3, n_auvs),
+        self.pos_space = spaces.Box(low=np.repeat(low[np.newaxis, :], n_auvs, axis=0),
+                                    high=np.repeat(high[np.newaxis, :], n_auvs, axis=0),
+                                    shape=(n_auvs, 3),
                                     dtype=np.float32)
         # TODO: Determine if observations should be normalised
         self.env_space = spaces.Box(low=self.ds.biomass.values.min(), high=self.ds.biomass.values.max(),

@@ -22,7 +22,7 @@ class BioMapping(gym.Env):
 
         self.env_sim = EnvSim(dt=dt, data_file=data_file, static=static, n_auvs=n_auvs)
         if pos0 is None:
-            pos0 = self.env_sim.pos_space.low  # could also use .sample()
+            pos0 = self.env_sim.pos_space.sample()
         self.auv_sim = AUVsim(pos0, speed=1.0, dt=dt)
         # Lats = np.linspace(63.4294, 63.4800, 50)
         # Lons = np.linspace(10.3329, 10.4461, 50)

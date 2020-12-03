@@ -10,8 +10,8 @@ class SilcamSim:
 
     def measure(self, ds, timestamp, pos):
         # x, y = self.lonlat2xy(lon=pos[0], lat=pos[1])
-        x = pos[0]
-        y = pos[1]
+        x = pos[:, 0]
+        y = pos[:, 1]
         # TODO: Proper 3d -> include zc=depth
         true_value = ds.isel(zc=0).biomass.interp(time=timestamp, xc=xr.DataArray(x), yc=xr.DataArray(y)).values
         # nan = np.isnan(true_value)
