@@ -59,11 +59,10 @@ class AUVsim:
             assert all(speed > 0), "All auv speeds must be positive"
         else:
             assert speed > 0, "Speed must be positive"
-        assert (dt > 0), "Timestep must be positive scalar"
+        assert dt > 0
         self.pos0 = pos0
         self.pos = pos0
-        self.speed = speed  # m/s
-        self.dt = dt  # s
+        self.distance = speed * dt  # m/s
         self.xy = xy
         self.lonlat = lonlat
 
@@ -83,9 +82,9 @@ class AUVsim:
         dv = action - self.pos
         dist = np.linalg.norm(dv, axis=1, keepdims=True)
 
-        at_goal = (dist < self.speed * self.dt).flatten()
+        at_goal = (dist < self.distance).flatten()
         self.pos[at_goal] = action[at_goal]
-        self.pos[~at_goal] += (dv[~at_goal] / dist[~at_goal]) * self.speed * self.dt
+        self.pos[~at_goal] += (dv[~at_goal] / dist[~at_goal]) * self.distance
 
         # self.heading = np.arctan2(dv[1], dv[0])
 
