@@ -1,5 +1,45 @@
 import pyproj
 import numpy as np
+from gym import spaces, error
+
+
+class AtariAUVSim:
+    def __init__(self, pos0=None, speed=1.0, square_size=50, sample_time=120, n_auvs=1):
+        assert speed > 0
+        assert sample_time > 0
+        assert square_size > 0
+        if pos0 is None:
+            pos0 = np.zeros((n_auvs, 3))
+        self.pos0 = pos0
+        self.pos = pos0
+
+        self.action_space = spaces.MultiDiscrete(np.ones(n_auvs)*9)
+        self.action_realization = np.array([(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0), (-1, 1, 0),
+                                            (-1, 0, 0), (-1, -1, 0), (0, -1, 0), (1, -1, 0)], dtype=np.int)
+        self.action_duration = np.array([np.linalg.norm(x) * square_size / speed for x in self.action_realization])
+        self.action_duration[0] = sample_time
+
+    def step(self, action):
+        """
+        Do one simulation step
+        :param action a positive int in the range [0, 9], with the following meaning;
+        0:sample, 1:north, 2:nort-east, 3:east, 4:south-east, 5:south,
+        6:south-west, 7:west, 8:north-west.
+        :return pos the position of the AUVs after executing the action.
+        :return time the time [s] the action took to execute.
+        """
+        if not self.action_space.contains(action):
+            raise error.InvalidAction()
+        self.pos += self.action_realization[action]
+        time = self.action_duration[action]
+        return self.pos, time
+
+    def reset(self):
+        self.pos = self.pos0
+        return self.pos
+
+    def render(self, ax):
+        ax.plot(self.pos[:, 0], self.pos[:, 1], 'ro')
 
 
 class AUVsim:
