@@ -9,3 +9,12 @@ register(
             'static': False,
             'n_auvs': 1}
 )
+
+register(
+    id='perfect_info_atari-v0',
+    entry_point='gym_biomapping.envs:AtariBioMapping',
+    kwargs={'pos0': None,
+            'data_file': 'bio2d_v2_samples_TrF_2018.04.27.nc',
+            'static': False,
+            'n_auvs': 1}
+)

@@ -9,7 +9,7 @@ class AtariAUVSim:
         assert sample_time > 0
         assert square_size > 0
         if pos0 is None:
-            pos0 = np.zeros((n_auvs, 3))
+            pos0 = np.zeros((n_auvs, 3), dtype=np.int)
         self.pos0 = pos0
         self.pos = pos0
 
