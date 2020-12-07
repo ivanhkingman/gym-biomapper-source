@@ -30,7 +30,10 @@ class AtariBioMapping(gym.Env):
 
     def step(self, action):
         pos, dt = self.auv_sim.step(action)
-        self.t += dt
+        self.t += dt[0]  # Currently not support for multiple AUVs in atari mode as,
+        # with the current implementation, it would require
+        # keeping track of one timeline for each AUV, making plotting difficult and
+        # having to interpolate env data in time for each auv.
         env_state, measurement = self.env_sim.step(pos, self.t)
         state = {"pos": pos, "env": env_state}
         reward = np.linalg.norm(measurement, axis=0) if action == 0 else 0
@@ -51,6 +54,7 @@ class AtariBioMapping(gym.Env):
 
     def close(self):
         return
+
 
 class BioMapping(gym.Env):
     metadata = {'render.modes': ['human']}
