@@ -4,15 +4,25 @@ import cmocean
 
 class SimpleAtariAgent:
 
-    def __init__(self, render=True):
+    def __init__(self, render=True, input='dict'):
         if render:
             self.fig, self.ax = plt.subplots()
         self.g_pos = np.zeros(3)
+        self.input = input
 
     def deliberate(self, obs):
-        ind = np.unravel_index(np.argmax(obs["env"]), obs["env"].shape)
+        if self.input == 'dict':
+            pos = obs['pos'][0]
+            env = obs["env"]
+        if self.input == 'flatten':
+            pos = obs[-3:]
+            env = obs[:-3].reshape(50, 50)
+        if self.input == '3D-matrix':
+            pos = np.zeros(3)
+            pos[:2] = np.array(np.nonzero(obs[:, :, 1])).flatten()
+            env = obs[:, :, 0]
+        ind = np.unravel_index(np.argmax(env), env.shape)
         g_pos = np.array([ind[0], ind[1], 0])
-        pos = obs['pos'][0]
         action = [0, 0, 0]
         for i in range(2):
             if pos[i] < g_pos[i]:
@@ -29,11 +39,14 @@ class SimpleAtariAgent:
     def render(self, obs, next_pos):
         self.ax.clear()
         self.ax.set_title('Observation')
-        self.ax.pcolormesh(obs["env"].T,
-                           cmap=cmocean.cm.deep,
-                           shading='auto')
-        self.ax.plot(obs['pos'][:, 0], obs['pos'][:, 1], 'go')
-        self.ax.plot(self.g_pos[0], self.g_pos[1], 'go')
+        if self.input == 'dict':
+            self.ax.pcolormesh(obs["env"].T,
+                               cmap=cmocean.cm.deep,
+                               shading='auto')
+            self.ax.plot(self.g_pos[0], self.g_pos[1], 'go')
+        if self.input == '3D-matrix':
+            self.ax.pcolormesh(obs[:, :, 1].T)
+            self.ax.plot(self.g_pos[0], self.g_pos[1], 'go')
         self.fig.canvas.draw()
 
 class SimpleAgent:

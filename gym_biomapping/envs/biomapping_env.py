@@ -12,9 +12,19 @@ from pathlib import Path
 
 DATA_DIR = Path(__file__).parent.joinpath('data')
 
+def _construct_output(env, pos, output_format):
+    if output_format == 'dict':
+        state = {"pos": pos, "env": env}
+    elif output_format == '3D-matrix':
+        img_pos = np.zeros(env.shape)
+        img_pos[pos[0, 0], pos[0, 1]] = 1
+        state = np.stack([env, img_pos], axis=2)
+    else:
+        raise ValueError("Unsupported output format {!r]".format(output_format))
+    return state
 
 class AtariBioMapping(gym.Env):
-    def __init__(self, pos0=None, data_file='bio2d_v2_samples_TrF_2018.04.27.nc', static=False, n_auvs=1):
+    def __init__(self, pos0=None, data_file='bio2d_v2_samples_TrF_2018.04.27.nc', static=False, output='dict', n_auvs=1):
         super(AtariBioMapping, self).__init__()
         assert n_auvs == 1, "Currently not implemented support for multiple AUVs"
         self.t = 0.0
@@ -26,6 +36,7 @@ class AtariBioMapping(gym.Env):
         self.action_space = self.auv_sim.action_space
         self.observation_space = spaces.Dict({"pos": self.env_sim.pos_space, "env": self.env_sim.env_space})
         self.fig, self.ax1 = plt.subplots()
+        self.output = output
         self.reset()
 
     def step(self, action):
@@ -35,7 +46,7 @@ class AtariBioMapping(gym.Env):
         # keeping track of one timeline for each AUV, making plotting difficult and
         # having to interpolate env data in time for each auv.
         env_state, measurement = self.env_sim.step(pos, self.t)
-        state = {"pos": pos, "env": env_state}
+        state = _construct_output(env_state, pos, self.output)
         reward = np.linalg.norm(measurement, axis=0) if action == 0 else 0
         done = False
         info = {}
@@ -43,7 +54,7 @@ class AtariBioMapping(gym.Env):
 
     def reset(self):
         self.t = 0.0
-        return {"pos": self.auv_sim.reset(), "env": self.env_sim.reset()}
+        return _construct_output(self.env_sim.reset(), self.auv_sim.reset(), self.output)
 
     def render(self, mode='human'):
         self.ax1.clear()
@@ -60,7 +71,7 @@ class BioMapping(gym.Env):
     metadata = {'render.modes': ['human']}
 
     def __init__(self, dt=60, pos0=None, data_file='bio2d_v2_samples_TrF_2018.04.27.nc',
-                 static=False, n_auvs=1):
+                 static=False, output='dict', n_auvs=1):
         super(BioMapping, self).__init__()
         assert (dt > 0)
         self.dt = dt
@@ -73,13 +84,14 @@ class BioMapping(gym.Env):
         self.action_space = self.env_sim.pos_space
         self.observation_space = spaces.Dict({"pos": self.env_sim.pos_space, "env": self.env_sim.env_space})
         self.fig, self.ax1 = plt.subplots()
+        self.output = output
         self.reset()
 
     def step(self, action):
         self.t += self.dt
         pos = self.auv_sim.step(action)
         env_state, measurement = self.env_sim.step(pos, self.t)
-        state = {"pos": pos, "env": env_state}
+        state = _construct_output(env_state, pos, self.output)
         reward = np.linalg.norm(measurement, axis=0)
         done = False
         info = {}
@@ -87,7 +99,7 @@ class BioMapping(gym.Env):
 
     def reset(self):
         self.t = 0.0
-        return {"pos": self.auv_sim.reset(), "env": self.env_sim.reset()}
+        return _construct_output(self.env_sim.reset(), self.auv_sim.reset(), self.output)
 
     def render(self, mode='human'):
         self.ax1.clear()
