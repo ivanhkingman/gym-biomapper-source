@@ -35,7 +35,8 @@ class AtariAUVSim:
         return self.pos, time
 
     def reset(self):
-        self.pos = self.pos0
+        print("Reset the position to (0,0,0)")
+        self.pos = 25*np.ones((1, 3), dtype=np.int) # 1 is from n_auvs
         return self.pos
 
     def render(self, ax):

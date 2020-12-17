@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cmocean
 
+"""
+
 class SimpleAtariAgent:
 
     def __init__(self, render=True, input='dict'):
@@ -73,3 +75,4 @@ class SimpleAgent:
                            shading='auto')
         self.ax.plot(next_pos[:, 0], next_pos[:, 1], 'go')
         self.fig.canvas.draw()
+"""
