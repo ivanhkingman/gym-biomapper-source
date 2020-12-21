@@ -24,22 +24,21 @@ def _construct_output(env, pos, output_format):
     return state
 
 class AtariBioMapping(gym.Env):
-    
-    
-    def __init__(self, pos0=None, data_file='bio2d_v2_samples_TrF_2018.04.27.nc', static=False, output='dict', n_auvs=1):
+    def __init__(self, pos0=None, data_file='bio2d_v2_samples_TrF_2018.04.27.nc', static=False, generate_data=False,
+                 output='dict', n_auvs=1):
         super(AtariBioMapping, self).__init__()
         assert n_auvs == 1, "Currently not implemented support for multiple AUVs"
         self.t = 0.0
-        self.env_sim = EnvSim(data_file=data_file, exact_indexed=True, static=static, n_auvs=n_auvs)
-        if pos0 is None:
-            pos0 = np.array(self.env_sim.pos_space.sample(), dtype=np.int).reshape((1, 3))
-        self.STATE_SPACE_SHAPE = (50,50,2)
-        self.auv_sim = AtariAUVSim(pos0, speed=1.0, square_size=50, sample_time=120, n_auvs=n_auvs)
+        self.env_sim = EnvSim(data_file=data_file, exact_indexed=True, static=static, generate_data=generate_data,
+                              n_auvs=n_auvs)
+        self.auv_sim = AtariAUVSim(pos0, space=self.env_sim.pos_space, speed=1.0, square_size=50, sample_time=120,
+                                   n_auvs=n_auvs)
         self.action_space = self.auv_sim.action_space
         self.observation_space = spaces.Dict({"pos": self.env_sim.pos_space, "env": self.env_sim.env_space})
+        self.STATE_SPACE_SHAPE = (50,50,2) # Quick-fix
         self.fig, self.ax1 = plt.subplots()
         self.output = output
-        self.MAX_STEPS = 50 # Steps to take before the episode is done: Should reflect length of a mission
+        self.MAX_STEPS = 400 # Steps to take before the episode is done: Should reflect length of a mission
         self.steps_taken = 0
         self.reset()
 
@@ -51,8 +50,7 @@ class AtariBioMapping(gym.Env):
         # having to interpolate env data in time for each auv.
         env_state, measurement = self.env_sim.step(pos, self.t)
         state = _construct_output(env_state, pos, self.output)
-        # Check if agent is out-of-bounds
-        if any(pos[0][0:1] > (50, 50)) or any(pos[0][0:1] < (0, 0)):
+        if any(pos[0] >= [49, 49, 1]) or any(pos[0] <= [0, 0, -1]): # Quick fix
             print("AUV is out of bounds")
             reward = -1000
             done = True
@@ -64,8 +62,8 @@ class AtariBioMapping(gym.Env):
             done = True
         else:
             done = False
-        info = {}
         self.steps_taken += 1
+        info = {}
         return state, reward, done, info
 
     def reset(self):
@@ -105,18 +103,12 @@ class BioMapping(gym.Env):
         self.reset()
 
     def step(self, action):
-        self.steps_taken +=1
         self.t += self.dt
         pos = self.auv_sim.step(action)
         env_state, measurement = self.env_sim.step(pos, self.t)
         state = _construct_output(env_state, pos, self.output)
         reward = np.linalg.norm(measurement, axis=0)
-        if self.steps_taken >= stelf.MAX_STEPS:
-            print("Episode reached max number of steps")
-            done = True
-        else:
-            print("On step number :", self.steps_taken)
-            done = False
+        done = False
         info = {}
         return state, reward, done, info
 

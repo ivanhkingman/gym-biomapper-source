@@ -4,15 +4,13 @@ from gym import spaces, error
 
 
 class AtariAUVSim:
-    def __init__(self, pos0=None, speed=1.0, square_size=50, sample_time=120, n_auvs=1):
+    def __init__(self, pos0=None, space=None, speed=1.0, square_size=50, sample_time=120, n_auvs=1):
         assert speed > 0
         assert sample_time > 0
         assert square_size > 0
-        if pos0 is None:
-            pos0 = np.zeros((n_auvs, 3), dtype=np.int)
         self.pos0 = pos0
-        self.pos = pos0
 
+        self.state_space = space
         self.action_space = spaces.MultiDiscrete(np.ones(n_auvs)*9)
         self.action_realization = np.array([(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0), (-1, 1, 0),
                                             (-1, 0, 0), (-1, -1, 0), (0, -1, 0), (1, -1, 0)], dtype=np.int)
@@ -35,8 +33,10 @@ class AtariAUVSim:
         return self.pos, time
 
     def reset(self):
-        print("Reset the position to (0,0,0)")
-        self.pos = 25*np.ones((1, 3), dtype=np.int) # 1 is from n_auvs
+        if self.pos0 is None:
+            self.pos = np.array(self.state_space.sample(), dtype=np.int).reshape((1, 3))
+        else:
+            self.pos = self.pos0
         return self.pos
 
     def render(self, ax):

@@ -6,12 +6,15 @@ import matplotlib.pyplot as plt
 import cmocean
 import pyproj
 from gym_biomapping.envs.silcam_sim import SilcamSim
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import Matern
 
 DATA_DIR = Path(__file__).parent.joinpath('data')
 
 
 class EnvSim:
-    def __init__(self, data_file='bio2d_v2_samples_TrF_2018.04.27.nc', exact_indexed=True, static=False, n_auvs=1):
+    def __init__(self, data_file='bio2d_v2_samples_TrF_2018.04.27.nc', exact_indexed=True, static=False,
+                 generate_data=False, n_auvs=1):
         self.static = static
         data_path = DATA_DIR.joinpath(data_file)
         if not data_path.is_file():
@@ -41,6 +44,13 @@ class EnvSim:
                                     shape=(self.ds.biomass.xc.size, self.ds.biomass.yc.size))
 
         self.figure_initialised = False
+        self.generate_data = generate_data
+        if generate_data:
+            np.random.seed(0)  # All np.random calls from here on will be reproducible.
+            # Every time reset() is called a new random environment will be drawn, but the
+            # sequence of environments will be the same for each gym instance.
+            kernel = Matern(length_scale=300, nu=1.5)
+            self.gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=0)
         self.reset()
 
     def step(self, pos, t):
@@ -56,7 +66,15 @@ class EnvSim:
 
     def reset(self):
         self.t = self.t0
-        self.env_state = self.ds.isel(zc=0).biomass.interp(time=self.t0).values
+        self.steps_taken = 0
+        if self.generate_data:
+            xc = self.ds.xc.values
+            yc = self.ds.yc.values
+            x1, x2 = np.broadcast_arrays(xc.reshape(-1, 1), yc.reshape(1, -1))
+            xy = np.vstack((x1.flatten(), x2.flatten())).T
+            y_mean = 25 * self.gp.sample_y(xy, random_state=None) + 50
+            self.ds['biomass'][dict(zc=0)].loc[dict(time=self.t0)] = y_mean.reshape(len(xc), len(yc))
+        self.env_state = self.ds.isel(zc=0).sel(time=self.t0).biomass.values
 
         return self.env_state
 
