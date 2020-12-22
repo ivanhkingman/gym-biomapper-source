@@ -12,3 +12,7 @@ Install the gym with pip
 Open jupyter notebook
 
     jupyter notebook
+    
+The DQN training can be executed by running the the notebook
+
+    gym-biomapper-source/gym_biomapping/examples/biomapping-atari.ipynb
